@@ -1,0 +1,41 @@
+version: "3.3"
+services:
+  postgres:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      - POSTGRES_DB=shape
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - '5438:5432'
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+      - ./db_init/initialize_db.sql:/docker-entrypoint-initdb.d/initialize_db.sql
+    networks:
+      spark-network:
+        ipv4_address: 172.19.0.6
+  spark:
+    image: spark
+    command: spark-submit --packages org.postgresql:postgresql:42.2.25 /opt/spark-app/ingest.py
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+    volumes:
+      - ./data:/opt/spark-data
+      - ./spark_script:/opt/spark-app
+    networks:
+      spark-network:
+        ipv4_address: 172.19.0.5
+    depends_on:
+      - postgres
+networks:
+  spark-network:
+    driver: bridge
+    ipam:
+        driver: default
+        config:
+            - subnet: 172.19.0.0/24
